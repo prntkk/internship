@@ -1,0 +1,56 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8000';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export const tweetAPI = {
+  // Generate a new tweet
+  generateTweet: async (prompt) => {
+    try {
+      const response = await api.post('/generate-tweet', { prompt });
+      return response.data;
+    } catch (error) {
+      console.error('Error generating tweet:', error);
+      throw error;
+    }
+  },
+
+  // Get all tweets
+  getTweets: async () => {
+    try {
+      const response = await api.get('/tweets');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tweets:', error);
+      throw error;
+    }
+  },
+
+  // Delete a tweet by ID
+  deleteTweet: async (tweetId) => {
+    try {
+      const response = await api.delete(`/tweets/${tweetId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting tweet:', error);
+      throw error;
+    }
+  },
+
+  // Health check
+  healthCheck: async () => {
+    try {
+      const response = await api.get('/health');
+      return response.data;
+    } catch (error) {
+      console.error('Error checking health:', error);
+      throw error;
+    }
+  }
+}; 

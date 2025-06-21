@@ -1,11 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import os
 
 # Database URL
-DATABASE_URL = "sqlite:///./tweets.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tweets.db")
 
 # Create engine
 engine = create_engine(
@@ -23,9 +23,11 @@ class Tweet(Base):
     __tablename__ = "tweets"
 
     id = Column(Integer, primary_key=True, index=True)
-    prompt = Column(Text, nullable=False)
+    prompt = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    posted_to_clone = Column(Boolean, default=False)
+    clone_response = Column(Text, nullable=True)
 
 # Create tables
 Base.metadata.create_all(bind=engine)

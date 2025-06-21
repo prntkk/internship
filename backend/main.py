@@ -2,119 +2,94 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-import os
+import requests
+from database import get_db, Tweet
+from models import TweetCreate, TweetResponse, ExternalPostRequest, ExternalPostResponse
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from config import OPENROUTER_API_KEY, TWITTER_CLONE_API_URL, TWITTER_CLONE_USERNAME, TWITTER_CLONE_API_KEY
 
-# Import with error handling
-try:
-    from database import get_db, Tweet
-    from models import TweetRequest, TweetResponse, TweetCreate
-    from ai_service import AIService
-except ImportError as e:
-    print(f"Import error: {e}")
-    print("Please make sure all required files are present in the backend directory")
-    raise
+app = FastAPI(title="AI Tweet Generator API", version="2.0.0")
 
-app = FastAPI(title="AI Tweet Generator API", version="1.0.0")
-
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize AI service with error handling
-try:
-    ai_service = AIService()
-    print("✅ AI Service initialized successfully")
-except Exception as e:
-    print(f"❌ Failed to initialize AI Service: {e}")
-    print("Please check your OPENROUTER_API_KEY in the .env file")
-    ai_service = None
+# AI Service
+llm = ChatOpenAI(
+    model="openai/gpt-3.5-turbo",
+    openai_api_base="https://openrouter.ai/api/v1",
+    openai_api_key=OPENROUTER_API_KEY,
+    temperature=0.8,
+    max_tokens=280
+)
 
-@app.get("/")
-def read_root():
-    return {"message": "AI Tweet Generator API is running!"}
+tweet_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a creative tweet generator. Write a tweet under 280 chars, engaging, with hashtags if appropriate."),
+    ("human", "Create an engaging tweet about: {prompt}")
+])
 
 @app.post("/generate-tweet", response_model=TweetResponse)
-def generate_tweet(tweet_request: TweetRequest, db: Session = Depends(get_db)):
-    """
-    Generate a tweet from a prompt and save it to the database.
-    """
-    if ai_service is None:
-        raise HTTPException(status_code=500, detail="AI service not available")
-    
+def generate_tweet(data: TweetCreate, db: Session = Depends(get_db)):
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="AI service not available (missing API key)")
     try:
-        # Generate tweet content using AI
-        tweet_content = ai_service.generate_tweet(tweet_request.prompt)
-        
-        # Create tweet record
+        chain = tweet_prompt | llm
+        result = chain.invoke({"prompt": data.prompt})
+        tweet_content = result.content.strip()
         db_tweet = Tweet(
-            prompt=tweet_request.prompt,
+            prompt=data.prompt,
             content=tweet_content
         )
-        
-        # Save to database
         db.add(db_tweet)
         db.commit()
         db.refresh(db_tweet)
-        
         return db_tweet
-        
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error generating tweet: {str(e)}")
 
 @app.get("/tweets", response_model=List[TweetResponse])
-def get_tweets(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """
-    Retrieve all tweets from the database.
-    """
-    try:
-        tweets = db.query(Tweet).offset(skip).limit(limit).all()
-        return tweets
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving tweets: {str(e)}")
+def get_tweets(db: Session = Depends(get_db)):
+    tweets = db.query(Tweet).order_by(Tweet.created_at.desc()).all()
+    return tweets
 
-@app.delete("/tweets/{tweet_id}")
-def delete_tweet(tweet_id: int, db: Session = Depends(get_db)):
-    """
-    Delete a tweet by its ID.
-    """
+@app.post("/post-to-external", response_model=ExternalPostResponse)
+def post_to_external(post: ExternalPostRequest, db: Session = Depends(get_db)):
+    tweet = db.query(Tweet).filter(Tweet.id == post.tweet_id).first()
+    if not tweet:
+        raise HTTPException(status_code=404, detail="Tweet not found")
+    # Allow editing before posting
+    tweet.content = post.content
+    headers = {
+        "api-key": post.api_key or TWITTER_CLONE_API_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "username": TWITTER_CLONE_USERNAME,
+        "text": tweet.content
+    }
     try:
-        # Find the tweet
-        tweet = db.query(Tweet).filter(Tweet.id == tweet_id).first()
-        if not tweet:
-            raise HTTPException(status_code=404, detail="Tweet not found")
-        
-        # Delete the tweet
-        db.delete(tweet)
+        response = requests.post(TWITTER_CLONE_API_URL, json=payload, headers=headers, timeout=10)
+        tweet.posted_to_clone = response.status_code == 200
+        tweet.clone_response = response.text
         db.commit()
-        
-        return {"message": "Tweet deleted successfully", "deleted_id": tweet_id}
-        
-    except HTTPException:
-        raise
+        if response.status_code == 200:
+            return ExternalPostResponse(success=True, message="Tweet posted successfully to Twitter Clone")
+        else:
+            return ExternalPostResponse(success=False, message=f"Failed: {response.status_code} - {response.text}")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error deleting tweet: {str(e)}")
+        return ExternalPostResponse(success=False, message=f"Error: {str(e)}")
 
 @app.get("/health")
-def health_check():
-    """
-    Health check endpoint.
-    """
-    return {
-        "status": "healthy", 
-        "message": "API is running",
-        "ai_service": "available" if ai_service else "unavailable"
-    }
+def health():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Starting AI Tweet Generator Backend...")
-    print("📍 Backend will be available at: http://localhost:8000")
-    print("🌐 Frontend should be running at: http://localhost:3000")
     uvicorn.run(app, host="0.0.0.0", port=8000) 

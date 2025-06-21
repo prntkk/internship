@@ -10,10 +10,21 @@ class TweetResponse(BaseModel):
     prompt: str
     content: str
     created_at: datetime
+    posted_to_clone: bool
+    clone_response: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class TweetCreate(BaseModel):
     prompt: str
-    content: str 
+
+class ExternalPostRequest(BaseModel):
+    tweet_id: int
+    content: str
+    api_key: Optional[str] = None
+
+class ExternalPostResponse(BaseModel):
+    success: bool
+    message: str
+    external_id: Optional[str] = None 

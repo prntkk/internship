@@ -43,6 +43,20 @@ export const tweetAPI = {
     }
   },
 
+  // Post tweet to external Twitter clone
+  postToExternal: async (tweetId, content) => {
+    try {
+      const response = await api.post('/post-to-external', {
+        tweet_id: tweetId,
+        content: content
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error posting to external site:', error);
+      throw error;
+    }
+  },
+
   // Health check
   healthCheck: async () => {
     try {

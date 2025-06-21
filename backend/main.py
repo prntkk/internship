@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
+import os
 import requests
 from backend.database import get_db, Tweet
 from backend.models import TweetCreate, TweetResponse, ExternalPostRequest, ExternalPostResponse
@@ -23,11 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Use OPENROUTER_API_KEY if set, else fall back to OPENAI_API_KEY
+OPENROUTER_OR_OPENAI_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+
 # AI Service
 llm = ChatOpenAI(
     model="openai/gpt-3.5-turbo",
     openai_api_base="https://openrouter.ai/api/v1",
-    openai_api_key=OPENROUTER_API_KEY,
+    openai_api_key=OPENROUTER_OR_OPENAI_KEY,
     temperature=0.8,
     max_tokens=280
 )

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -102,6 +102,31 @@ def post_to_external(post: ExternalPostRequest, db: Session = Depends(get_db)):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+router = APIRouter()
+
+@router.get("/test-openrouter")
+def test_openrouter():
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        return {"error": "No API key found in environment variable OPENROUTER_API_KEY"}
+    headers = {"Authorization": f"Bearer {api_key}"}
+    data = {
+        "model": "openai/gpt-3.5-turbo",
+        "messages": [{"role": "user", "content": "Hello"}]
+    }
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers=headers,
+        json=data
+    )
+    return {
+        "api_key": repr(api_key),
+        "status_code": response.status_code,
+        "response": response.text
+    }
+
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn

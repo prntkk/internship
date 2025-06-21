@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 import requests
-from database import get_db, Tweet
-from models import TweetCreate, TweetResponse, ExternalPostRequest, ExternalPostResponse
+from backend.database import get_db, Tweet
+from backend.models import TweetCreate, TweetResponse, ExternalPostRequest, ExternalPostResponse
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from config import OPENROUTER_API_KEY, TWITTER_CLONE_API_URL, TWITTER_CLONE_USERNAME, TWITTER_CLONE_API_KEY
+from backend.config import OPENROUTER_API_KEY, TWITTER_CLONE_API_URL, TWITTER_CLONE_USERNAME, TWITTER_CLONE_API_KEY
 
 app = FastAPI(title="AI Tweet Generator API", version="2.0.0")
 

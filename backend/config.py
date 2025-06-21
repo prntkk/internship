@@ -24,7 +24,7 @@ def get_external_api_headers(api_key):
         "Content-Type": "application/json"
     }
 
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 TWITTER_CLONE_API_URL = "https://twitterclone-server-2xz2.onrender.com/post_tweet"
-TWITTER_CLONE_USERNAME = "prantik"
-TWITTER_CLONE_API_KEY = "prantik_fe67235324979e8b9fe8bdfb4cfb62af" 
+TWITTER_CLONE_USERNAME = os.getenv("TWITTER_CLONE_USERNAME", "prantik")
+TWITTER_CLONE_API_KEY = os.getenv("TWITTER_CLONE_API_KEY") 

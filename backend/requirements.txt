@@ -6,4 +6,5 @@ python-dotenv
 requests
 langchain
 langchain-openai
-openai 
+openai
+psycopg2-binary 

@@ -26,6 +26,9 @@ app.add_middleware(
 
 # Use OPENROUTER_API_KEY if set, else fall back to OPENAI_API_KEY
 OPENROUTER_OR_OPENAI_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+print("OPENROUTER_API_KEY:", os.getenv("OPENROUTER_API_KEY"))
+print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
+print("Using key:", OPENROUTER_OR_OPENAI_KEY)
 
 # AI Service
 llm = ChatOpenAI(
@@ -43,7 +46,8 @@ tweet_prompt = ChatPromptTemplate.from_messages([
 
 @app.post("/generate-tweet", response_model=TweetResponse)
 def generate_tweet(data: TweetCreate, db: Session = Depends(get_db)):
-    if not OPENROUTER_API_KEY:
+    if not OPENROUTER_OR_OPENAI_KEY:
+        print("No OpenRouter/OpenAI API key found!")
         raise HTTPException(status_code=500, detail="AI service not available (missing API key)")
     try:
         chain = tweet_prompt | llm
@@ -59,6 +63,7 @@ def generate_tweet(data: TweetCreate, db: Session = Depends(get_db)):
         return db_tweet
     except Exception as e:
         db.rollback()
+        print("Error in /generate-tweet:", str(e))
         raise HTTPException(status_code=500, detail=f"Error generating tweet: {str(e)}")
 
 @app.get("/tweets", response_model=List[TweetResponse])

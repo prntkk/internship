@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.1.2",
     "@solidjs/router": "^0.10.10",
     "axios": "^1.6.0",
-    "solid-js": "^1.8.0"
+    "solid-js": "^1.8.0",
+    "three": "^0.177.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.0",

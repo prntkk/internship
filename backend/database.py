@@ -4,7 +4,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Use SQLite as default if DATABASE_URL is not set
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tweets.db")
 
 # Create engine
 engine = create_engine(DATABASE_URL)

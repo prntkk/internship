@@ -4,17 +4,18 @@ from sqlalchemy.orm import Session
 from typing import List
 import os
 import requests
-from backend.database import get_db, Tweet
-from backend.models import TweetCreate, TweetResponse, ExternalPostRequest, ExternalPostResponse
+from database import get_db, Tweet
+from models import TweetCreate, TweetResponse, ExternalPostRequest, ExternalPostResponse
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from backend.config import OPENROUTER_API_KEY, TWITTER_CLONE_API_URL, TWITTER_CLONE_USERNAME, TWITTER_CLONE_API_KEY
+from config import OPENROUTER_API_KEY, TWITTER_CLONE_API_URL, TWITTER_CLONE_USERNAME, TWITTER_CLONE_API_KEY, EXTERNAL_API_CONFIG
 
 app = FastAPI(title="AI Tweet Generator API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:3000",  # Add localhost for development
         "https://internship-pi-ivory.vercel.app",
         "https://internship-git-main-prantiks-projects-c64122ab.vercel.app",
         "https://internship-jtuvuc1gs-prantiks-projects-c64122ab.vercel.app"
@@ -25,18 +26,21 @@ app.add_middleware(
 )
 
 # Use OPENROUTER_API_KEY if set, else fall back to OPENAI_API_KEY
-OPENROUTER_OR_OPENAI_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
-print("OPENROUTER_API_KEY:", os.getenv("OPENROUTER_API_KEY"))
-print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
-print("Using key:", OPENROUTER_OR_OPENAI_KEY)
+raw_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+# Clean the API key - remove quotes, whitespace, and any extra characters
+OPENROUTER_OR_OPENAI_KEY = raw_key.strip().strip("'\"`").strip()
 
-# AI Service
+# AI Service - Updated for OpenRouter
 llm = ChatOpenAI(
-    model="openai/gpt-3.5-turbo",
+    model="openai/gpt-4o-mini",
     openai_api_base="https://openrouter.ai/api/v1",
     openai_api_key=OPENROUTER_OR_OPENAI_KEY,
     temperature=0.8,
-    max_tokens=280
+    max_tokens=280,
+    extra_headers={
+        "HTTP-Referer": "http://localhost:3000",  # Your site URL for rankings
+        "X-Title": "AI Tweet Generator",  # Your site title for rankings
+    }
 )
 
 tweet_prompt = ChatPromptTemplate.from_messages([
@@ -78,16 +82,21 @@ def post_to_external(post: ExternalPostRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tweet not found")
     # Allow editing before posting
     tweet.content = post.content
+    
+    # Use the correct API URL and key from config
+    api_url = f"{EXTERNAL_API_CONFIG['base_url']}{EXTERNAL_API_CONFIG['endpoint']}"
+    api_key = post.api_key or EXTERNAL_API_CONFIG["default_api_key"]
+    
     headers = {
-        "api-key": post.api_key or TWITTER_CLONE_API_KEY,
+        "api-key": api_key,
         "Content-Type": "application/json"
     }
     payload = {
-        "username": TWITTER_CLONE_USERNAME,
+        "username": EXTERNAL_API_CONFIG["username"],
         "text": tweet.content
     }
     try:
-        response = requests.post(TWITTER_CLONE_API_URL, json=payload, headers=headers, timeout=10)
+        response = requests.post(api_url, json=payload, headers=headers, timeout=10)
         tweet.posted_to_clone = response.status_code == 200
         tweet.clone_response = response.text
         db.commit()
@@ -107,24 +116,41 @@ router = APIRouter()
 
 @router.get("/test-openrouter")
 def test_openrouter():
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
+    if not OPENROUTER_OR_OPENAI_KEY:
         return {"error": "No API key found in environment variable OPENROUTER_API_KEY"}
-    headers = {"Authorization": f"Bearer {api_key}"}
+    
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_OR_OPENAI_KEY}",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "AI Tweet Generator"
+    }
     data = {
         "model": "openai/gpt-3.5-turbo",
-        "messages": [{"role": "user", "content": "Hello"}]
+        "messages": [{"role": "user", "content": "Hello, this is a test message"}],
+        "max_tokens": 50
     }
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers,
-        json=data
-    )
-    return {
-        "api_key": repr(api_key),
-        "status_code": response.status_code,
-        "response": response.text
-    }
+    
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=data,
+            timeout=10
+        )
+        
+        return {
+            "api_key_present": bool(OPENROUTER_OR_OPENAI_KEY),
+            "api_key_preview": f"{OPENROUTER_OR_OPENAI_KEY[:10]}..." if OPENROUTER_OR_OPENAI_KEY else None,
+            "status_code": response.status_code,
+            "response_text": response.text,
+            "response_json": response.json() if response.status_code == 200 else None
+        }
+    except Exception as e:
+        return {
+            "api_key_present": bool(OPENROUTER_OR_OPENAI_KEY),
+            "api_key_preview": f"{OPENROUTER_OR_OPENAI_KEY[:10]}..." if OPENROUTER_OR_OPENAI_KEY else None,
+            "error": str(e)
+        }
 
 app.include_router(router)
 

@@ -30,6 +30,9 @@ raw_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
 # Clean the API key - remove quotes, whitespace, and any extra characters
 OPENROUTER_OR_OPENAI_KEY = raw_key.strip().strip("'\"`").strip()
 
+# Get the site URL for OpenRouter headers
+SITE_URL = os.getenv("SITE_URL", "https://internship-deployment.onrender.com")
+
 # AI Service - Updated for OpenRouter
 llm = ChatOpenAI(
     model="openai/gpt-4o-mini",
@@ -38,7 +41,7 @@ llm = ChatOpenAI(
     temperature=0.8,
     max_tokens=280,
     extra_headers={
-        "HTTP-Referer": "http://localhost:3000",  # Your site URL for rankings
+        "HTTP-Referer": SITE_URL,  # Use production URL
         "X-Title": "AI Tweet Generator",  # Your site title for rankings
     }
 )
@@ -121,7 +124,7 @@ def test_openrouter():
     
     headers = {
         "Authorization": f"Bearer {OPENROUTER_OR_OPENAI_KEY}",
-        "HTTP-Referer": "http://localhost:3000",
+        "HTTP-Referer": SITE_URL,
         "X-Title": "AI Tweet Generator"
     }
     data = {
@@ -156,4 +159,5 @@ app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port) 

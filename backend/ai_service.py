@@ -85,10 +85,5 @@ class AIService:
                 
         except Exception as e:
             print(f"❌ Error generating tweet: {e}")
-            # Return a more specific fallback response based on the prompt
-            if "cricket" in prompt.lower():
-                return f"🏏 Cricket is more than just a sport - it's a passion that unites nations! From the thrill of a perfect cover drive to the tension of a last-over finish, every match tells a story. #Cricket #LoveForCricket #Sport"
-            elif "football" in prompt.lower():
-                return f"⚽ Football is more than just a game - it's passion, teamwork, and unforgettable moments! Whether you're on the field or cheering from the stands, every match brings new excitement. #Football #BeautifulGame #Passion"
-            else:
-                return f"🎯 Here's a tweet about {prompt}: Exploring new ideas and sharing insights about {prompt}! Always learning, always growing. #Innovation #Learning #Growth" 
+            # Return a simple, generalized fallback response
+            return f"Here's a tweet about {prompt}. Thanks for sharing this topic! #Tweet #Share" 

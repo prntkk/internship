@@ -7,6 +7,10 @@ from datetime import datetime
 # Use SQLite as default if DATABASE_URL is not set
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tweets.db")
 
+# Fix for Render PostgreSQL URL
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # Create engine
 engine = create_engine(DATABASE_URL)
 

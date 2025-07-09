@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # Use SQLite as default if DATABASE_URL is not set
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tweets.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:dp3DWagoIaUE2fIN@db.xaccqhsgrejpfnxeyzbh.supabase.co:5432/postgres")
 
 # Fix for Render PostgreSQL URL
 if DATABASE_URL.startswith("postgres://"):
